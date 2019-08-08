@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -97,17 +97,17 @@ namespace Personal_Budget
         }
 
         private void transactionBtn_Click(object sender, EventArgs e)
-        {             
+        {
             String account, category, paidTo, date, month, temp;
             Double payment = 0;
             DateTime monthDate;
             int transactionID = 0;
-            
+
             account = category = paidTo = temp = date = month = "";
             account = category = paidTo = temp = date = month = "";
 
             account = paymentAcctBox.Text;
-            category = categoryBox.SelectedText;
+            category = categoryBox.Text;
             temp = paymentBox.Text;
             payment = Convert.ToDouble(temp);
             paidTo = paidToBox.Text;
@@ -155,13 +155,30 @@ namespace Personal_Budget
 
             }
 
+            //Check if payments table is empty
             connection.Open();
-            OleDbCommand cmd = new OleDbCommand("SELECT TOP 1 TransactionID FROM Payments ORDER BY TransactionID DESC", connection);
+            OleDbCommand cmd = new OleDbCommand("SELECT COUNT(TransactionID) AS Entries FROM Payments", connection);
             OleDbDataReader reader = cmd.ExecuteReader();
             reader.Read();
-            temp = String.Format("{0}", reader["TransactionID"]);
-            transactionID = Int32.Parse(temp) + 1;
+            String count = String.Format("{0}", reader["Entries"]);
             connection.Close();
+
+            if (count.Equals("0"))
+            {
+                transactionID = 1;
+            }
+            //If Payments table is not empty, TransactionID is 1 + the largest TransactionID
+            else
+            {
+                connection.Open();
+                cmd = new OleDbCommand("SELECT TOP 1 TransactionID FROM Payments ORDER BY TransactionID DESC", connection);
+                reader = cmd.ExecuteReader();
+                reader.Read();
+                temp = String.Format("{0}", reader["TransactionID"]);
+                transactionID = Int32.Parse(temp) + 1;
+                connection.Close();
+            }
+
             
             cmd = new OleDbCommand("INSERT INTO Payments VALUES (@TransactionID, @PaymentAccount, @Category, @Payment, @PaidTo, @TransactionDate, @TransactionMonth)", connection);
 
@@ -214,12 +231,6 @@ namespace Personal_Budget
 
         private void updateBtn_Click(object sender, EventArgs e)
         {
-            Console.WriteLine(paymentAcctBox.Text);
-            Console.WriteLine(categoryBox.Text);
-            Console.WriteLine(paymentBox.Text);
-            Console.WriteLine(paidToBox.Text);
-            Console.WriteLine(transactionDatePicker.Text);
-            Console.WriteLine(IDBox.Text);
 
             OleDbCommand cmd = new OleDbCommand("UPDATE Payments SET Account = @Account, Category = @Category, Payment = @Payment, PaidTo = @PaidTo, TransactionDate = @Date WHERE TransactionID =  @ID", connection);
             cmd.Parameters.AddWithValue("@Account", paymentAcctBox.Text);
