@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -30,7 +30,7 @@ namespace Personal_Budget
         static int numPaidFrom = 6;
 
         static List<String> paidTo = new List<String>();
-        static String[] paidFrom = new string[numPaidFrom];
+        static List<String> paidFrom = new List<String>();
         static List<String> category = new List<String>();
 
         static List<String> categoryCost = new List<String>();
@@ -40,7 +40,7 @@ namespace Personal_Budget
                               
 
         static int currMonthNum = Convert.ToInt32(DateTime.Now.ToString("MM"));
-        static String[] month = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        static String[] month = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
         static String[] monthCost = new String[12];
         static String[] monthIncome = new String[12];
         static String[] net = new String[12];
@@ -61,21 +61,69 @@ namespace Personal_Budget
 
             int i = 0;
 
+            for (i=0; i<month.Length; i++)
+            {
+                monthCost[i] = "0";
+                monthIncome[i] = "0";
+                net[i] = "0";
+            }
+
+
+            //Find the earliest date that an income or payment was recorded
+            String temp1, temp2;
+            DateTime temp3, temp4;
+            
+            //Earliest Payment date
+            cmd = new OleDbCommand("SELECT  TOP 1 TransactionDate FROM Payments ORDER BY TransactionDate", connection);
+            connection.Open();
+            cmd.ExecuteNonQuery();
+            reader = cmd.ExecuteReader();
+            reader.Read();
+            
+            temp1 = String.Format("{0}", reader["TransactionDate"]);
+            connection.Close();
+
+            //Earliest Income date
+            cmd = new OleDbCommand("SELECT  TOP 1 IncomeDate FROM Income ORDER BY IncomeDate", connection);
+            connection.Open();
+            cmd.ExecuteNonQuery();
+            reader = cmd.ExecuteReader();
+            reader.Read();
+
+            temp2 = String.Format("{0}", reader["IncomeDate"]);
+            connection.Close();
+
+            //Convert date strings to DateTime for comparison
+            temp3 = Convert.ToDateTime(temp1);
+            temp4 = Convert.ToDateTime(temp2);
+
+            //Finds the earliest date between Income and Payment dates
+            //startMonth becomes the earliest month
+            int startMonth;
+            if (temp3 < temp4)
+            {
+                startMonth = Convert.ToInt32(DateTime.Parse(temp1).ToString("MM"));
+            }
+            else
+            {
+                startMonth = Convert.ToInt32(DateTime.Parse(temp2).ToString("MM"));
+            }
+
+
             //Reset numPaidTo on window opening
             numPaidTo = 6;
-            numPaidFrom = 8;
+            numPaidFrom = 6;
 
             String sMonth = DateTime.Now.ToString("MM");
             int temp = Int32.Parse(sMonth);
 
-            paidFrom = new string[numPaidFrom];
 
             categoryCost.Clear();
             paidToCost = new String[numPaidTo];
             paidFromCost = new String[numPaidFrom];
 
 
-            for (i=0; i<temp; i++)
+            for (i=startMonth-1; i<currMonthNum; i++)
             {
                 monthChooser.Items.Add(month[i]);
             }
@@ -85,7 +133,7 @@ namespace Personal_Budget
 
             //Fill monthCost array
 
-            for (i = 0; i < currMonthNum; i++)
+            for (i = startMonth-1; i < currMonthNum; i++)
             {
                 cmd = new OleDbCommand("SELECT TransactionMonth, SUM(Payment) AS TotalPayment FROM Payments WHERE TransactionMonth = @Month GROUP BY TransactionMonth", connection);
                 cmd.Parameters.AddWithValue("@Month", month[i]);
@@ -107,7 +155,7 @@ namespace Personal_Budget
             }
 
             //Fill monthIncome array
-            for (i = 0; i < currMonthNum; i++)
+            for (i = startMonth-1; i <= currMonthNum; i++)
             {
                 cmd = new OleDbCommand("SELECT IncomeMonth, SUM(Payment) AS TotalIncome FROM Income WHERE IncomeMonth = @Month GROUP BY IncomeMonth", connection);
                 cmd.Parameters.AddWithValue("@Month", month[i]);
@@ -163,7 +211,7 @@ namespace Personal_Budget
             i = 0;
             while (reader2.Read())
             {
-                paidFrom[i] = String.Format("{0}", reader2["PaidFrom"]);
+                paidFrom.Add(String.Format("{0}", reader2["PaidFrom"]));
                 i++;
             }
             connection.Close();
@@ -183,7 +231,7 @@ namespace Personal_Budget
 
 
             //Fill paidFromCost array
-            for (i = 0; i < 6; i++)
+            for (i = 0; i < paidFrom.Count; i++)
             {
                 cmd2 = new OleDbCommand("SELECT TOP 6 PaidFrom, SUM(Payment) AS TotalPayment FROM INCOME WHERE PaidFrom = @PaidFrom GROUP BY PaidFrom", connection);
                 cmd2.Parameters.AddWithValue("@PaidFrom", paidFrom[i]);
@@ -215,10 +263,9 @@ namespace Personal_Budget
 
 
             //Fill net, monthCost, and monthIncome array
-            for (i = 0; i < currMonthNum; i++)
+            for (i = startMonth-1; i < currMonthNum; i++)
             {
                 net[i] = (Convert.ToDouble(monthIncome[i]) - Convert.ToDouble(monthCost[i])).ToString();
-
 
                 monthCost[i] = String.Format("{0:#.00}", Convert.ToDecimal(monthCost[i]));
                 monthCost[i] = "$" + monthCost[i];
@@ -229,6 +276,7 @@ namespace Personal_Budget
                 net[i] = String.Format("{0:#.00}", Convert.ToDecimal(net[i]));
                 net[i] = "$" + net[i];
             }
+
 
             //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
             //Category chart creation
@@ -297,16 +345,19 @@ namespace Personal_Budget
             monthChart.ChartAreas[0].AxisY.LabelStyle.ForeColor = mist;
             monthChart.ChartAreas[0].AxisY.LabelStyle.Font = new Font("Arial", 14, FontStyle.Bold);
 
-            for (i = 0; i < currMonthNum; i++)
+            Console.WriteLine(startMonth + ", " + currMonthNum);
+            int j = 0;
+            for (i = startMonth-1; i <currMonthNum; i++)
             {
+                
                 monthChart.Series[monthPaymentSeries].Points.AddXY(month[i], monthCost[i]);
                 monthChart.Series[monthIncomeSeries].Points.AddXY(month[i], monthIncome[i]);
                 monthChart.Series[netSeries].Points.AddXY(month[i], net[i]);
-                monthChart.Series[monthPaymentSeries].Points[i].Label = monthCost[i];
-                monthChart.Series[monthIncomeSeries].Points[i].Label = monthIncome[i];
-                monthChart.Series[netSeries].Points[i].Label = net[i];
-
-                monthChart.Series[monthPaymentSeries].Points[i].Font = monthChart.Series[monthIncomeSeries].Points[i].Font = monthChart.Series[netSeries].Points[i].Font = new Font("Arial", 12, FontStyle.Bold);
+                monthChart.Series[monthPaymentSeries].Points[j].Label = monthCost[i];
+                monthChart.Series[monthIncomeSeries].Points[j].Label = monthIncome[i];
+                monthChart.Series[netSeries].Points[j].Label = net[i];
+                monthChart.Series[monthPaymentSeries].Points[j].Font = monthChart.Series[monthIncomeSeries].Points[j].Font = monthChart.Series[netSeries].Points[j].Font = new Font("Arial", 12, FontStyle.Bold);
+                j++;
             }
 
             //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -318,7 +369,7 @@ namespace Personal_Budget
             paidToChart.ChartAreas[0].BackColor = Color.Transparent;
             paidToChart.Series[paidToSeries].IsVisibleInLegend = false;
 
-            for (i = 0; i < numPaidTo; i++)
+            for (i = 0; i < paidTo.Count; i++)
             {
                 paidToChart.Series[paidToSeries].Points.AddXY(paidTo[i], paidToCost[i]);
                 paidToChart.Series[paidToSeries].Points[i].Label = paidTo[i];
@@ -338,7 +389,7 @@ namespace Personal_Budget
             paidFromChart.ChartAreas[0].BackColor = Color.Transparent;
             paidFromChart.Series[paidFromSeries].IsVisibleInLegend = false;
 
-            for (i = 0; i < 6; i++)
+            for (i = 0; i < paidFrom.Count; i++)
             {
                 paidFromChart.Series[paidFromSeries].Points.AddXY(paidFrom[i], paidFromCost[i]);
                 paidFromChart.Series[paidFromSeries].Points[i].Label = paidFrom[i];
@@ -411,7 +462,7 @@ namespace Personal_Budget
 
             category.Clear();
             paidTo.Clear();
-            paidFrom = new string[6];
+            paidFrom.Clear();
 
             String temp;
             OleDbConnection connection = new OleDbConnection(dbConnection.getConnection());
@@ -490,7 +541,7 @@ namespace Personal_Budget
                 }
                 connection.Close();
 
-                for (i = 0; i < paidFrom.Length; i++)
+                for (i = 0; i < paidFrom.Count; i++)
                 {
                     connection = new OleDbConnection(dbConnection.getConnection());
 
@@ -594,7 +645,6 @@ namespace Personal_Budget
                 while (reader.Read())
                 {
                     paidTo.Add(String.Format("{0}", reader["PaidTo"]));
-                    Console.WriteLine(paidTo[i]);
                     i++;
                 }
                 connection.Close();
@@ -638,7 +688,6 @@ namespace Personal_Budget
                 if (numPaidFrom < 6)
                 {
                     paidFromCost = new String[numPaidFrom];
-                    paidFrom = new String[numPaidFrom];
                 }
                 connection.Close();
 
@@ -654,12 +703,12 @@ namespace Personal_Budget
                 i = 0;
                 while (reader.Read())
                 {
-                    paidFrom[i] = String.Format("{0}", reader["PaidFrom"]);
+                    paidFrom.Add(String.Format("{0}", reader["PaidFrom"]));
                     i++;
                 }
                 connection.Close();
 
-                for (i = 0; i < paidFrom.Length; i++)
+                for (i = 0; i < paidFrom.Count; i++)
                 {
                     connection = new OleDbConnection(dbConnection.getConnection());
 
@@ -717,7 +766,7 @@ namespace Personal_Budget
             }
 
             //Adds data to PaidFrom chart
-            for (int i = 0; i < paidFrom.Length; i++)
+            for (int i = 0; i < paidFrom.Count; i++)
             {
                 paidFromChart.Series[paidFromSeries].Points.AddXY(paidFrom[i], paidFromCost[i]);
                 paidFromChart.Series[paidFromSeries].Points[i].Label = paidFrom[i];
