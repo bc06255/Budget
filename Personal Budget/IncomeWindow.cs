@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -40,7 +40,8 @@ namespace Personal_Budget
             incomeGridView.DataSource = ds.Tables[0];
 
             incomeGridView.Columns[2].DefaultCellStyle.Format = "C";
-           
+
+            Console.WriteLine(transactionDatePicker);
 
             foreach (DataGridViewColumn column in incomeGridView.Columns)
             {
@@ -216,8 +217,6 @@ namespace Personal_Budget
         {
             DateTime monthDate;
 
-            OleDbCommand cmd = new OleDbCommand("UPDATE INCOME SET PaidFrom = @PaidFrom, Payment = @Payment, IncomeDate = @Date, TransactionMonth = @Month WHERE IncomeID =  @ID", connection);
-                        
             monthDate = Convert.ToDateTime(transactionDatePicker.Text);
             String month = "";
 
@@ -262,16 +261,19 @@ namespace Personal_Budget
 
             }
 
-            cmd.Parameters.AddWithValue("@Payment", paymentBox.Text);
+            OleDbCommand cmd = new OleDbCommand("UPDATE INCOME SET PaidFrom = @PaidFrom, Payment = @Payment, IncomeDate = @Date, IncomeMonth = @Month WHERE IncomeID =  @ID", connection);
+
             cmd.Parameters.AddWithValue("@PaidFrom", paidFromBox.Text);
+            cmd.Parameters.AddWithValue("@Payment", paymentBox.Text);
             cmd.Parameters.AddWithValue("@Date", transactionDatePicker.Text);
-            cmd.Parameters.AddWithValue("@ID", IDBox.Text);
             cmd.Parameters.AddWithValue("@Month", month);
+            cmd.Parameters.AddWithValue("@ID", IDBox.Text);
+            
 
             connection.Open();
             cmd.ExecuteNonQuery();
             connection.Close();
-
+            
             ds.Tables.Clear();
             dataadapter = new OleDbDataAdapter(sql, connection);
             connection.Open();
