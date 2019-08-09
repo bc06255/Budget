@@ -71,43 +71,66 @@ namespace Personal_Budget
 
             //Find the earliest date that an income or payment was recorded
             String temp1, temp2;
+            temp1 = temp2 = "";
             DateTime temp3, temp4;
+            int startMonth = 0;
+
             
-            //Earliest Payment date
-            cmd = new OleDbCommand("SELECT  TOP 1 TransactionDate FROM Payments ORDER BY TransactionDate", connection);
-            connection.Open();
-            cmd.ExecuteNonQuery();
-            reader = cmd.ExecuteReader();
-            reader.Read();
+            try
+            {
+                //Earliest Payment date
+                cmd = new OleDbCommand("SELECT  TOP 1 TransactionDate FROM Payments ORDER BY TransactionDate", connection);
+                connection.Open();
+                cmd.ExecuteNonQuery();
+                reader = cmd.ExecuteReader();
+                reader.Read();
+
+                temp1 = String.Format("{0}", reader["TransactionDate"]);
+                connection.Close();
+
+                //Earliest Income date
+                cmd = new OleDbCommand("SELECT  TOP 1 IncomeDate FROM Income ORDER BY IncomeDate", connection);
+                connection.Open();
+                cmd.ExecuteNonQuery();
+                reader = cmd.ExecuteReader();
+                reader.Read();
+
+                temp2 = String.Format("{0}", reader["IncomeDate"]);
+                connection.Close();
+
+                //Convert date strings to DateTime for comparison
+                temp3 = Convert.ToDateTime(temp1);
+                temp4 = Convert.ToDateTime(temp2);
+
+                //Finds the earliest date between Income and Payment dates
+                //startMonth becomes the earliest month
+
+                if (temp3 < temp4)
+                {
+                    startMonth = Convert.ToInt32(DateTime.Parse(temp1).ToString("MM"));
+                }
+                else
+                {
+                    startMonth = Convert.ToInt32(DateTime.Parse(temp2).ToString("MM"));
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                label1.Text = "No Stats To Show";
+                label1.Left = 190;
+                label1.Top = -50;
+                monthBtn.Hide();
+                categoryBtn.Hide();
+                paidToBtn.Hide();
+                paidFromBtn.Hide();
+                return;
+            }
+
             
-            temp1 = String.Format("{0}", reader["TransactionDate"]);
-            connection.Close();
 
-            //Earliest Income date
-            cmd = new OleDbCommand("SELECT  TOP 1 IncomeDate FROM Income ORDER BY IncomeDate", connection);
-            connection.Open();
-            cmd.ExecuteNonQuery();
-            reader = cmd.ExecuteReader();
-            reader.Read();
+            
 
-            temp2 = String.Format("{0}", reader["IncomeDate"]);
-            connection.Close();
-
-            //Convert date strings to DateTime for comparison
-            temp3 = Convert.ToDateTime(temp1);
-            temp4 = Convert.ToDateTime(temp2);
-
-            //Finds the earliest date between Income and Payment dates
-            //startMonth becomes the earliest month
-            int startMonth;
-            if (temp3 < temp4)
-            {
-                startMonth = Convert.ToInt32(DateTime.Parse(temp1).ToString("MM"));
-            }
-            else
-            {
-                startMonth = Convert.ToInt32(DateTime.Parse(temp2).ToString("MM"));
-            }
+            
 
 
             //Reset numPaidTo on window opening
@@ -198,21 +221,17 @@ namespace Personal_Budget
             cmd2 = new OleDbCommand("SELECT TOP 6 PaidFrom, SUM(Payment) AS TotalPayment FROM Income GROUP BY PaidFRom ORDER BY SUM(Payment) DESC", connection);
             reader = cmd.ExecuteReader();
 
-            i = 0;
             while (reader.Read())
             {
                 paidTo.Add(String.Format("{0}", reader["PaidTo"]));
-                i++;
             }
             connection.Close();
 
             connection.Open();
             reader2 = cmd2.ExecuteReader();
-            i = 0;
             while (reader2.Read())
             {
                 paidFrom.Add(String.Format("{0}", reader2["PaidFrom"]));
-                i++;
             }
             connection.Close();
 
@@ -345,7 +364,6 @@ namespace Personal_Budget
             monthChart.ChartAreas[0].AxisY.LabelStyle.ForeColor = mist;
             monthChart.ChartAreas[0].AxisY.LabelStyle.Font = new Font("Arial", 14, FontStyle.Bold);
 
-            Console.WriteLine(startMonth + ", " + currMonthNum);
             int j = 0;
             for (i = startMonth-1; i <currMonthNum; i++)
             {
@@ -533,11 +551,9 @@ namespace Personal_Budget
                 cmd1 = new OleDbCommand("SELECT TOP 6 PaidFrom, SUM(Payment) AS TotalPayment FROM INCOME GROUP BY PaidFrom ORDER BY SUM(Payment) DESC", connection);
                 reader = cmd1.ExecuteReader();
 
-                i = 0;
                 while (reader.Read())
                 {
-                    paidFrom[i] = String.Format("{0}", reader["PaidFrom"]);
-                    i++;
+                    paidFrom.Add(String.Format("{0}", reader["PaidFrom"]));
                 }
                 connection.Close();
 
